@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TableProperties, CheckCircle2, ArrowRight, AlertTriangle, RefreshCw, ChevronDown, Link2, Globe, Type, FileText, Calendar } from 'lucide-react';
+import { safeFetchJson } from '../services/api';
 
 interface ColumnMappingViewProps {
   job: any;
@@ -120,7 +121,7 @@ export const ColumnMappingView: React.FC<ColumnMappingViewProps> = ({ job, setJo
     setRemapError(null);
 
     try {
-      const response = await fetch(`/api/jobs/${job.id}/remap`, {
+      const data = await safeFetchJson(`/api/jobs/${job.id}/remap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,11 +135,6 @@ export const ColumnMappingView: React.FC<ColumnMappingViewProps> = ({ job, setJo
           },
         }),
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Re-mapping failed');
-      }
 
       setJob(data.job);
       setHasManualChanges(false);

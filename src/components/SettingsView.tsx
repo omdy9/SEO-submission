@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Key, Sliders, Save, CheckCircle2, UserCheck, Lock } from 'lucide-react';
+import { safeFetchJson } from '../services/api';
 
 interface SettingsViewProps {
   dryRun: boolean;
@@ -15,8 +16,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun })
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch('/api/settings')
-      .then((res) => res.json())
+    safeFetchJson('/api/settings')
       .then((data) => {
         setGeminiKey(data.geminiApiKey || '');
         setGroqKey(data.groqApiKey || '');
@@ -29,7 +29,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun })
 
   const handleSaveSettings = async () => {
     try {
-      await fetch('/api/settings', {
+      await safeFetchJson('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { safeFetchJson } from '../services/api';
 
 interface ContentGenerationViewProps {
   job: any;
@@ -14,7 +15,7 @@ export const ContentGenerationView: React.FC<ContentGenerationViewProps> = ({ jo
   const handleStartGeneration = async () => {
     setGenerating(true);
     try {
-      await fetch(`/api/jobs/${job.id}/generate`, { method: 'POST' });
+      await safeFetchJson(`/api/jobs/${job.id}/generate`, { method: 'POST' });
     } catch (err) {
       console.error(err);
     } finally {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Edit3, RefreshCw, XCircle, Check, ArrowRight, ToggleLeft, ToggleRight } from 'lucide-react';
+import { safeFetchJson } from '../services/api';
 
 interface ReviewViewProps {
   job: any;
@@ -25,7 +26,7 @@ export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRu
     if (!editingTask) return;
 
     try {
-      await fetch(`/api/jobs/${job.id}/tasks/${editingTask.task.rowIndex}`, {
+      await safeFetchJson(`/api/jobs/${job.id}/tasks/${editingTask.task.rowIndex}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editTitle, content: editContent }),
@@ -38,7 +39,7 @@ export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRu
 
   const handleApproveAll = async () => {
     try {
-      await fetch(`/api/jobs/${job.id}/approve`, {
+      await safeFetchJson(`/api/jobs/${job.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rowIndices: 'all' }),

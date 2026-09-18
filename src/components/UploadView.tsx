@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
+import { safeFetchJson } from '../services/api';
 
 interface UploadViewProps {
   onUploadSuccess: (jobData: any) => void;
@@ -41,15 +42,10 @@ export const UploadView: React.FC<UploadViewProps> = ({ onUploadSuccess, setActi
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/upload', {
+      const data = await safeFetchJson('/api/upload', {
         method: 'POST',
         body: formData,
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to parse Excel file');
-      }
 
       onUploadSuccess(data.job);
       setActiveTab('mapping');

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Send, Terminal, ShieldAlert, CheckCircle, ArrowRight, Play, Pause } from 'lucide-react';
+import { safeFetchJson } from '../services/api';
 
 interface SubmissionProgressViewProps {
   job: any;
@@ -15,7 +16,7 @@ export const SubmissionProgressView: React.FC<SubmissionProgressViewProps> = ({ 
   const handleStartSubmission = async () => {
     setSubmitting(true);
     try {
-      await fetch(`/api/jobs/${job.id}/submit`, { method: 'POST' });
+      await safeFetchJson(`/api/jobs/${job.id}/submit`, { method: 'POST' });
     } catch (err) {
       console.error(err);
     } finally {
