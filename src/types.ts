@@ -73,6 +73,13 @@ export interface ProcessedTaskResult {
   error?: string;
 }
 
+export interface SubmissionCredentials {
+  username?: string;
+  password?: string;
+  loginUrl?: string;
+  siteCredentials?: Record<string, { username?: string; password?: string; loginUrl?: string }>;
+}
+
 export interface CLIOptions {
   input: string;
   output?: string;
@@ -80,3 +87,4 @@ export interface CLIOptions {
   concurrency?: number;
   siteUrl?: string;
 }
+

@@ -31,6 +31,8 @@ let appSettings = {
   groqApiKey: process.env.GROQ_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
   groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+  submissionUsername: process.env.SUBMISSION_USERNAME || '',
+  submissionPassword: process.env.SUBMISSION_PASSWORD || '',
   dryRun: false,
   similarityThreshold: globalThis.parseFloat(process.env.SIMILARITY_THRESHOLD || '0.70'),
   concurrency: 1,
@@ -284,7 +286,11 @@ app.post('/api/jobs/:id/submit', async (req: Request, res: Response): Promise<an
         const subResult = await submissionAdapter.submitContent(
           item.task,
           item.generation.aiResponse,
-          appSettings.dryRun
+          appSettings.dryRun,
+          {
+            username: appSettings.submissionUsername,
+            password: appSettings.submissionPassword,
+          }
         );
 
         let verResult = undefined;

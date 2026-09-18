@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Key, Sliders, Save, CheckCircle2 } from 'lucide-react';
+import { Settings, Key, Sliders, Save, CheckCircle2, UserCheck, Lock } from 'lucide-react';
 
 interface SettingsViewProps {
   dryRun: boolean;
@@ -9,6 +9,8 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun }) => {
   const [geminiKey, setGeminiKey] = useState('');
   const [groqKey, setGroqKey] = useState('');
+  const [submissionUsername, setSubmissionUsername] = useState('');
+  const [submissionPassword, setSubmissionPassword] = useState('');
   const [similarityThreshold, setSimilarityThreshold] = useState(0.70);
   const [saved, setSaved] = useState(false);
 
@@ -18,6 +20,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun })
       .then((data) => {
         setGeminiKey(data.geminiApiKey || '');
         setGroqKey(data.groqApiKey || '');
+        setSubmissionUsername(data.submissionUsername || '');
+        setSubmissionPassword(data.submissionPassword || '');
         setSimilarityThreshold(data.similarityThreshold || 0.70);
       })
       .catch(() => null);
@@ -31,6 +35,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun })
         body: JSON.stringify({
           geminiApiKey: geminiKey,
           groqApiKey: groqKey,
+          submissionUsername,
+          submissionPassword,
           dryRun,
           similarityThreshold,
         }),
@@ -45,15 +51,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun })
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-extrabold font-display text-white">System Settings & API Keys</h1>
+        <h1 className="text-3xl font-extrabold font-display text-white">System Settings & Automation Credentials</h1>
         <p className="text-slate-400">
-          Configure server-side AI provider credentials and automation parameters securely.
+          Configure AI providers, submission login credentials, and automation parameters securely.
         </p>
       </div>
 
       <div className="glass-card p-8 rounded-2xl border border-slate-800 space-y-6">
-        {/* AI Keys Section */}
+        {/* Bookmarking Submission Credentials */}
         <div className="space-y-4">
+          <h3 className="text-lg font-bold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
+            <UserCheck className="w-5 h-5 text-emerald-400" />
+            <span>Bookmarking & Submission Site Account Login</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Account Username / Email
+              </label>
+              <input
+                type="text"
+                placeholder="user@example.com"
+                value={submissionUsername}
+                onChange={(e) => setSubmissionUsername(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Account Password
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••••••"
+                value={submissionPassword}
+                onChange={(e) => setSubmissionPassword(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">
+            Playwright will use these credentials automatically when a submission target displays a login page or password input.
+          </p>
+        </div>
+
+        {/* AI Keys Section */}
+        <div className="space-y-4 pt-4 border-t border-slate-800/80">
           <h3 className="text-lg font-bold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
             <Key className="w-5 h-5 text-indigo-400" />
             <span>AI Provider API Credentials</span>
@@ -135,3 +180,4 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ dryRun, setDryRun })
     </div>
   );
 };
+
