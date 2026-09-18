@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -361,6 +361,10 @@ app.post('/api/settings', (req: Request, res: Response) => {
   res.json({ message: 'Settings saved', settings: appSettings });
 });
 
-app.listen(PORT, () => {
-  console.log(`🌐 SEO Submission Automation Server running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🌐 SEO Submission Automation Server running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
