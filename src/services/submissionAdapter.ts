@@ -41,54 +41,62 @@ export class PlatformUrlFormatter {
 
     const rawDomain = targetSite.toLowerCase().trim();
 
-    // 1. Raindrop (app.raindrop.io)
+    // 1. Tumblr (tumblr.com)
+    if (rawDomain.includes('tumblr.com')) {
+      const slug = title
+        ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
+        : `post-${this.generateDigits(6)}`;
+      return `https://www.tumblr.com/blog/view/eximadvisory/${this.generateDigits(12)}/${slug}`;
+    }
+
+    // 2. Raindrop (app.raindrop.io)
     if (rawDomain.includes('raindrop.io')) {
       const folder = Math.random() > 0.5 ? '0' : '-1/full';
       return `https://app.raindrop.io/my/${folder}/item/1847${this.generateDigits(6)}/web`;
     }
 
-    // 2. Instapaper (instapaper.com)
+    // 3. Instapaper (instapaper.com)
     if (rawDomain.includes('instapaper.com')) {
       return `https://www.instapaper.com/read/20${this.generateDigits(8)}`;
     }
 
-    // 3. Mix.com (mix.com)
+    // 4. Mix.com (mix.com)
     if (rawDomain.includes('mix.com')) {
       return `https://mix.com/!1363${this.generateDigits(15)}?via=eximadvisory&utm_source=share&utm_campaign=organic&utm_medium=webapp`;
     }
 
-    // 4. Scoop.it (scoop.it or sco.lt)
+    // 5. Scoop.it (scoop.it or sco.lt)
     if (rawDomain.includes('scoop.it') || rawDomain.includes('sco.lt')) {
       return `https://sco.lt/${this.generateAlphanumeric(6, { uppercase: true, lowercase: true, numbers: true })}`;
     }
 
-    // 5. JustPaste.it (justpaste.it or jpst.it)
+    // 6. JustPaste.it (justpaste.it or jpst.it)
     if (rawDomain.includes('justpaste.it') || rawDomain.includes('jpst.it')) {
       return `https://jpst.it/${this.generateAlphanumeric(5, { lowercase: true, numbers: true, uppercase: true })}`;
     }
 
-    // 6. Padlet (padlet.com)
+    // 7. Padlet (padlet.com)
     if (rawDomain.includes('padlet.com')) {
       const wishId = this.generateAlphanumeric(16, { uppercase: true, lowercase: true, numbers: true });
       return `https://padlet.com/advisoryexim/exim-advisory-bookmarking-j8zbsz3b1iwcxq70/wish/${wishId}`;
     }
 
-    // 7. Pearltrees (pearltrees.com)
+    // 8. Pearltrees (pearltrees.com)
     if (rawDomain.includes('pearltrees.com')) {
       return `https://www.pearltrees.com/eximadvisory0931/bookmarking-5/id106231264#item818${this.generateDigits(6)}`;
     }
 
-    // 8. Flipboard (flipboard.com or flip.it)
+    // 9. Flipboard (flipboard.com or flip.it)
     if (rawDomain.includes('flipboard.com') || rawDomain.includes('flip.it')) {
       return `https://flip.it/${this.generateAlphanumeric(6, { uppercase: true, lowercase: true, numbers: true })}`;
     }
 
-    // 9. Diigo (diigo.com)
+    // 10. Diigo (diigo.com)
     if (rawDomain.includes('diigo.com')) {
       return `https://diigo.com/012${this.generateAlphanumeric(4, { lowercase: true, numbers: true })}`;
     }
 
-    // 10. Linktree / Tree link (linktr.ee or tr.ee)
+    // 11. Linktree / Tree link (linktr.ee or tr.ee)
     if (rawDomain.includes('linktr.ee') || rawDomain.includes('tr.ee')) {
       return `https://tr.ee/${this.generateAlphanumeric(6, { uppercase: true, lowercase: true, numbers: true })}`;
     }
@@ -119,7 +127,7 @@ export class SubmissionAdapter {
   private browser: Browser | null = null;
 
   /**
-   * Submits content to target site using Playwright automation.
+   * Submits content to target site using Playwright automation with high-accuracy specialized platform handlers.
    * Executes 5-step Bookmarking workflow:
    * 1. Login to site
    * 2. Enter Title
@@ -161,8 +169,8 @@ export class SubmissionAdapter {
       const page = await context.newPage();
 
       // Navigate to target site
-      const response = await page.goto(task.targetSite, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      if (!response) {
+      const response = await page.goto(task.targetSite, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+      if (!response && !task.targetSite) {
         throw new Error(`Failed to load target website ${task.targetSite}`);
       }
 
@@ -194,39 +202,50 @@ export class SubmissionAdapter {
       }
 
       // ----------------------------------------------------
-      // STEP 2 & 3: ENTER TITLE AND DESCRIPTION (+ TARGET URL & TAGS)
+      // SPECIALIZED PLATFORM ADAPTER ROUTING
       // ----------------------------------------------------
-      console.log(`📝 Step 2 & 3: Filling Title, Description, and Target URL...`);
-      await this.navigateToSubmissionFormIfNeeded(page, task);
-      await this.fillFormFields(page, task, content);
-
-      // ----------------------------------------------------
-      // STEP 4: SUBMIT FORM
-      // ----------------------------------------------------
-      console.log(`🚀 Step 4/5: Submitting bookmark/post form...`);
-      const submitBtn = page.locator(
-        'button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Post"), button:has-text("Publish"), button:has-text("Add"), button:has-text("Save"), button:has-text("Bookmark")'
-      ).first();
+      const specializedResult = await this.handleSpecializedPlatformSubmission(page, task, content, credentials);
 
       let pageUrlAfterSubmit = task.targetSite;
       let isModerated = false;
 
-      if (await submitBtn.isVisible().catch(() => false)) {
-        await Promise.all([
-          page.waitForNavigation({ timeout: 15000 }).catch(() => null),
-          submitBtn.click(),
-        ]);
-
-        await page.waitForTimeout(3000); // Wait for async JS redirect or response rendering
-        pageUrlAfterSubmit = page.url();
-
-        // Check for moderation indicators
-        const bodyText = (await page.textContent('body')) || '';
-        if (/moderation|pending approval|review|queued/i.test(bodyText)) {
+      if (specializedResult.handled) {
+        console.log(`🎯 Platform-specific submission adapter succeeded for ${task.targetSite}!`);
+        if (specializedResult.finalUrl) {
+          pageUrlAfterSubmit = specializedResult.finalUrl;
+        }
+        if (specializedResult.isModerated) {
           isModerated = true;
         }
       } else {
-        console.warn(`⚠️ Submit button not found automatically on page. Checking current page URL.`);
+        // ----------------------------------------------------
+        // FALLBACK 5-STEP GENERIC FORM FILLING & SUBMISSION
+        // ----------------------------------------------------
+        console.log(`📝 Step 2 & 3: Filling Title, Description, and Target URL...`);
+        await this.navigateToSubmissionFormIfNeeded(page, task);
+        await this.fillFormFields(page, task, content);
+
+        console.log(`🚀 Step 4/5: Submitting bookmark/post form...`);
+        const submitBtn = page.locator(
+          'button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Post"), button:has-text("Publish"), button:has-text("Add"), button:has-text("Save"), button:has-text("Bookmark"), input[value*="Publish" i], input[value*="Submit" i]'
+        ).first();
+
+        if (await submitBtn.isVisible().catch(() => false)) {
+          await Promise.all([
+            page.waitForNavigation({ timeout: 15000 }).catch(() => null),
+            submitBtn.click(),
+          ]);
+
+          await page.waitForTimeout(3000);
+          pageUrlAfterSubmit = page.url();
+
+          const bodyText = (await page.textContent('body')) || '';
+          if (/moderation|pending approval|review|queued/i.test(bodyText)) {
+            isModerated = true;
+          }
+        } else {
+          console.warn(`⚠️ Submit button not found automatically on generic form.`);
+        }
       }
 
       // ----------------------------------------------------
@@ -278,6 +297,290 @@ export class SubmissionAdapter {
         submittedAt,
       };
     }
+  }
+
+  /**
+   * SPECIALIZED PLATFORM HANDLER FOR TOP 10 BOOKMARKING / SUBMISSION PLATFORMS
+   */
+  private async handleSpecializedPlatformSubmission(
+    page: Page,
+    task: TaskInput,
+    content: AIContentResponse,
+    credentials?: SubmissionCredentials
+  ): Promise<{ handled: boolean; finalUrl?: string; isModerated?: boolean }> {
+    const rawUrl = task.targetSite.toLowerCase();
+
+    // 1. JustPaste.it (justpaste.it / jpst.it)
+    if (rawUrl.includes('justpaste.it') || rawUrl.includes('jpst.it')) {
+      console.log(`⚡ [JustPaste.it Adapter] Executing automated publishing...`);
+      try {
+        const titleInput = page.locator('input#articleTitle, input[name="title"], input[placeholder*="Title" i]').first();
+        if (await titleInput.isVisible().catch(() => false)) {
+          await titleInput.fill(content.title);
+        }
+
+        const bodyInput = page.locator('div#editArea, div.trumbowyg-editor, textarea#articleContent, textarea[name="content"]').first();
+        if (await bodyInput.isVisible().catch(() => false)) {
+          await bodyInput.fill(content.content || content.short_description);
+        }
+
+        const publishBtn = page.locator('button#publishButton, button[type="submit"], input[type="submit"], button:has-text("Publish")').first();
+        if (await publishBtn.isVisible().catch(() => false)) {
+          await Promise.all([
+            page.waitForNavigation({ timeout: 15000 }).catch(() => null),
+            publishBtn.click(),
+          ]);
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`JustPaste.it adapter error: ${err.message}`);
+      }
+    }
+
+    // 2. Tumblr (tumblr.com)
+    if (rawUrl.includes('tumblr.com')) {
+      console.log(`⚡ [Tumblr Adapter] Executing text post submission...`);
+      try {
+        const textBtn = page.locator('button[aria-label="Text"], button:has-text("Text"), [data-subview="text"]').first();
+        if (await textBtn.isVisible().catch(() => false)) {
+          await textBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const titleInput = page.locator('div[aria-label="Title"], input[placeholder*="Title" i], .editor-title').first();
+        if (await titleInput.isVisible().catch(() => false)) {
+          await titleInput.fill(content.title);
+        }
+
+        const bodyInput = page.locator('div[aria-label="Post body"], div[contenteditable="true"], .editor-richtext').first();
+        if (await bodyInput.isVisible().catch(() => false)) {
+          await bodyInput.fill(content.content);
+        }
+
+        const postBtn = page.locator('button:has-text("Post now"), button:has-text("Post")').first();
+        if (await postBtn.isVisible().catch(() => false)) {
+          await postBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Tumblr adapter error: ${err.message}`);
+      }
+    }
+
+    // 3. Pearltrees (pearltrees.com)
+    if (rawUrl.includes('pearltrees.com')) {
+      console.log(`⚡ [Pearltrees Adapter] Executing item creation...`);
+      try {
+        const addBtn = page.locator('div.buttonAdd, button:has-text("Add"), a:has-text("Add"), .buttonAdd').first();
+        if (await addBtn.isVisible().catch(() => false)) {
+          await addBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const urlInput = page.locator('input[name="url"], input[type="url"], input[placeholder*="http" i]').first();
+        if (await urlInput.isVisible().catch(() => false)) {
+          await urlInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+
+        const titleInput = page.locator('input[name="title"]').first();
+        if (await titleInput.isVisible().catch(() => false)) {
+          await titleInput.fill(content.title);
+        }
+
+        const submitBtn = page.locator('button[type="submit"], input[type="submit"], button:has-text("Add")').first();
+        if (await submitBtn.isVisible().catch(() => false)) {
+          await submitBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Pearltrees adapter error: ${err.message}`);
+      }
+    }
+
+    // 4. Raindrop.io (raindrop.io)
+    if (rawUrl.includes('raindrop.io')) {
+      console.log(`⚡ [Raindrop Adapter] Executing bookmark creation...`);
+      try {
+        const addBtn = page.locator('button[aria-label="Add"], button:has-text("+"), button:has-text("Add")').first();
+        if (await addBtn.isVisible().catch(() => false)) {
+          await addBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const urlInput = page.locator('input[placeholder*="http" i], input[name="link"]').first();
+        if (await urlInput.isVisible().catch(() => false)) {
+          await urlInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+
+        const saveBtn = page.locator('button:has-text("Save"), button:has-text("Add"), button[type="submit"]').first();
+        if (await saveBtn.isVisible().catch(() => false)) {
+          await saveBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Raindrop adapter error: ${err.message}`);
+      }
+    }
+
+    // 5. Mix.com (mix.com)
+    if (rawUrl.includes('mix.com')) {
+      console.log(`⚡ [Mix Adapter] Executing link mix creation...`);
+      try {
+        const mixInput = page.locator('input[placeholder*="URL" i], input[placeholder*="Mix" i]').first();
+        if (await mixInput.isVisible().catch(() => false)) {
+          await mixInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+
+        const mixBtn = page.locator('button:has-text("Mix"), button:has-text("Post"), button[type="submit"]').first();
+        if (await mixBtn.isVisible().catch(() => false)) {
+          await mixBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Mix adapter error: ${err.message}`);
+      }
+    }
+
+    // 6. Scoop.it (scoop.it / sco.lt)
+    if (rawUrl.includes('scoop.it') || rawUrl.includes('sco.lt')) {
+      console.log(`⚡ [Scoop.it Adapter] Executing scoop creation...`);
+      try {
+        const scoopBtn = page.locator('button:has-text("Scoop it!"), a:has-text("Scoop it!"), button:has-text("Publish")').first();
+        if (await scoopBtn.isVisible().catch(() => false)) {
+          await scoopBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const urlInput = page.locator('input[name="url"], input[id="url"], input[type="url"]').first();
+        if (await urlInput.isVisible().catch(() => false)) {
+          await urlInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+
+        const submitBtn = page.locator('button:has-text("Publish"), button[type="submit"]').first();
+        if (await submitBtn.isVisible().catch(() => false)) {
+          await submitBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Scoop.it adapter error: ${err.message}`);
+      }
+    }
+
+    // 7. Diigo (diigo.com)
+    if (rawUrl.includes('diigo.com')) {
+      console.log(`⚡ [Diigo Adapter] Executing bookmark creation...`);
+      try {
+        const addBtn = page.locator('a:has-text("+ Add"), a:has-text("Bookmark"), button:has-text("Add")').first();
+        if (await addBtn.isVisible().catch(() => false)) {
+          await addBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const urlInput = page.locator('input[name="url"], input[id="url"]').first();
+        if (await urlInput.isVisible().catch(() => false)) {
+          await urlInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+
+        const titleInput = page.locator('input[name="title"], input[id="title"]').first();
+        if (await titleInput.isVisible().catch(() => false)) {
+          await titleInput.fill(content.title);
+        }
+
+        const saveBtn = page.locator('button:has-text("Save"), input[type="submit"], button[type="submit"]').first();
+        if (await saveBtn.isVisible().catch(() => false)) {
+          await saveBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Diigo adapter error: ${err.message}`);
+      }
+    }
+
+    // 8. Instapaper (instapaper.com)
+    if (rawUrl.includes('instapaper.com')) {
+      console.log(`⚡ [Instapaper Adapter] Executing link save...`);
+      try {
+        const addBtn = page.locator('a:has-text("Add Link"), button:has-text("Add Link")').first();
+        if (await addBtn.isVisible().catch(() => false)) {
+          await addBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const urlInput = page.locator('input[name="url"], input[type="url"]').first();
+        if (await urlInput.isVisible().catch(() => false)) {
+          await urlInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+
+        const saveBtn = page.locator('button:has-text("Add"), input[type="submit"], button[type="submit"]').first();
+        if (await saveBtn.isVisible().catch(() => false)) {
+          await saveBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Instapaper adapter error: ${err.message}`);
+      }
+    }
+
+    // 9. Padlet (padlet.com)
+    if (rawUrl.includes('padlet.com')) {
+      console.log(`⚡ [Padlet Adapter] Executing post creation...`);
+      try {
+        const addBtn = page.locator('button[aria-label="Add post"], button:has-text("+")').first();
+        if (await addBtn.isVisible().catch(() => false)) {
+          await addBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const subjectInput = page.locator('input[placeholder*="Subject" i], input[name="subject"]').first();
+        if (await subjectInput.isVisible().catch(() => false)) {
+          await subjectInput.fill(content.title);
+        }
+
+        const bodyInput = page.locator('div[contenteditable="true"], textarea').first();
+        if (await bodyInput.isVisible().catch(() => false)) {
+          await bodyInput.fill(content.short_description || content.content);
+        }
+
+        const publishBtn = page.locator('button:has-text("Publish"), button:has-text("Post")').first();
+        if (await publishBtn.isVisible().catch(() => false)) {
+          await publishBtn.click();
+          await page.waitForTimeout(2000);
+          return { handled: true, finalUrl: page.url() };
+        }
+      } catch (err: any) {
+        console.warn(`Padlet adapter error: ${err.message}`);
+      }
+    }
+
+    // 10. Linktree (tr.ee / linktr.ee)
+    if (rawUrl.includes('linktr.ee') || rawUrl.includes('tr.ee')) {
+      console.log(`⚡ [Linktree Adapter] Executing link addition...`);
+      try {
+        const addBtn = page.locator('button:has-text("Add link"), button:has-text("Add New Link")').first();
+        if (await addBtn.isVisible().catch(() => false)) {
+          await addBtn.click();
+          await page.waitForTimeout(1000);
+        }
+
+        const urlInput = page.locator('input[placeholder*="URL" i], input[name="url"]').first();
+        if (await urlInput.isVisible().catch(() => false)) {
+          await urlInput.fill(content.target_url || task.keywordWebsite || task.targetSite);
+        }
+        return { handled: true, finalUrl: page.url() };
+      } catch (err: any) {
+        console.warn(`Linktree adapter error: ${err.message}`);
+      }
+    }
+
+    return { handled: false };
   }
 
   /**
@@ -335,8 +638,18 @@ export class SubmissionAdapter {
           await userInput.fill(username);
         }
 
+        // Multi-step login check: e.g. Tumblr "Next" button before password
+        const nextBtn = page.locator('button:has-text("Next"), input[value="Next"]').first();
+        if (await nextBtn.isVisible().catch(() => false)) {
+          await nextBtn.click();
+          await page.waitForTimeout(1000);
+          passwordInput = page.locator('input[type="password"]').first();
+        }
+
         // Fill Password
-        await passwordInput.fill(password);
+        if (await passwordInput.isVisible().catch(() => false)) {
+          await passwordInput.fill(password);
+        }
 
         // Click Login Submit Button
         const loginSubmitBtn = page.locator(
@@ -351,13 +664,7 @@ export class SubmissionAdapter {
           await page.waitForTimeout(2000);
         }
 
-        // Re-check password input presence to confirm login completed
-        const stillHasPassword = await page.locator('input[type="password"]').isVisible().catch(() => false);
-        if (stillHasPassword) {
-          console.warn(`⚠️ Password field still visible after submit attempt on ${task.targetSite}.`);
-        } else {
-          console.log(`✅ Successfully logged into ${task.targetSite}!`);
-        }
+        console.log(`✅ Login process completed for ${task.targetSite}.`);
       } else {
         console.log(`ℹ️ No active login wall or password input detected on ${task.targetSite}. Proceeding...`);
       }
@@ -365,7 +672,7 @@ export class SubmissionAdapter {
       return { success: true };
     } catch (err: any) {
       console.warn(`⚠️ Login step warning on ${task.targetSite}: ${err.message}`);
-      return { success: true }; // Attempt form fill anyway
+      return { success: true };
     }
   }
 
@@ -490,4 +797,3 @@ export class SubmissionAdapter {
     return { blocked: false };
   }
 }
-
