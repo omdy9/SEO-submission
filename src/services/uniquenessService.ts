@@ -16,26 +16,35 @@ export class UniquenessService {
   private history: HistoryItem[] = [];
 
   constructor() {
-    this.storageDir = path.join(process.cwd(), '.storage');
+    // On Vercel only /tmp is writable; use .storage locally
+    this.storageDir = process.env.VERCEL
+      ? '/tmp/.storage'
+      : path.join(process.cwd(), '.storage');
     this.historyFilePath = path.join(this.storageDir, 'history.json');
     this.initStorage();
   }
 
   private initStorage(): void {
-    if (!fs.existsSync(this.storageDir)) {
-      fs.mkdirSync(this.storageDir, { recursive: true });
-    }
-
-    if (fs.existsSync(this.historyFilePath)) {
-      try {
-        const raw = fs.readFileSync(this.historyFilePath, 'utf-8');
-        this.history = JSON.parse(raw);
-      } catch (err) {
-        this.history = [];
+    try {
+      if (!fs.existsSync(this.storageDir)) {
+        fs.mkdirSync(this.storageDir, { recursive: true });
       }
-    } else {
+
+      if (fs.existsSync(this.historyFilePath)) {
+        try {
+          const raw = fs.readFileSync(this.historyFilePath, 'utf-8');
+          this.history = JSON.parse(raw);
+        } catch {
+          this.history = [];
+        }
+      } else {
+        this.history = [];
+        fs.writeFileSync(this.historyFilePath, JSON.stringify([]));
+      }
+    } catch (err) {
+      // On read-only filesystems (e.g. Vercel /var/task) fall back to in-memory only
+      console.warn('[UniquenessService] Storage unavailable, running in-memory mode:', (err as Error).message);
       this.history = [];
-      fs.writeFileSync(this.historyFilePath, JSON.stringify([]));
     }
   }
 
@@ -85,7 +94,11 @@ export class UniquenessService {
     };
 
     this.history.push(newItem);
-    fs.writeFileSync(this.historyFilePath, JSON.stringify(this.history, null, 2));
+    try {
+      fs.writeFileSync(this.historyFilePath, JSON.stringify(this.history, null, 2));
+    } catch {
+      // In-memory only — storage not writable (e.g. Vercel serverless)
+    }
   }
 
   /**
