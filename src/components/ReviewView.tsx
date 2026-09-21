@@ -12,6 +12,7 @@ interface ReviewViewProps {
 export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRun, setDryRun }) => {
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [editShortDescription, setEditShortDescription] = useState('');
   const [editContent, setEditContent] = useState('');
 
   if (!job) return null;
@@ -19,6 +20,7 @@ export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRu
   const handleOpenEdit = (t: any) => {
     setEditingTask(t);
     setEditTitle(t.generation?.aiResponse.title || '');
+    setEditShortDescription(t.generation?.aiResponse.short_description || '');
     setEditContent(t.generation?.aiResponse.content || '');
   };
 
@@ -29,7 +31,11 @@ export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRu
       await safeFetchJson(`/api/jobs/${job.id}/tasks/${editingTask.task.rowIndex}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editTitle, content: editContent }),
+        body: JSON.stringify({
+          title: editTitle,
+          short_description: editShortDescription,
+          content: editContent,
+        }),
       });
       setEditingTask(null);
     } catch (err) {
@@ -114,12 +120,28 @@ export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRu
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="font-bold text-base text-indigo-300">{gen.aiResponse.title}</div>
-                <div className="text-xs text-slate-400 font-mono">Target Site: {t.task.targetSite}</div>
-                <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800/60">
-                  {gen.aiResponse.content}
-                </p>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-0.5">Title</span>
+                  <div className="font-bold text-base text-indigo-300">{gen.aiResponse.title}</div>
+                </div>
+
+                {gen.aiResponse.short_description && (
+                  <div>
+                    <span className="text-[10px] text-amber-400 font-semibold uppercase block mb-0.5">Short Description</span>
+                    <div className="text-xs text-slate-300 bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+                      {gen.aiResponse.short_description}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-0.5">Target Site & Body Content</span>
+                  <div className="text-xs text-slate-400 font-mono mb-1.5">Target Site: {t.task.targetSite}</div>
+                  <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800/60">
+                    {gen.aiResponse.content}
+                  </p>
+                </div>
               </div>
             </div>
           );
@@ -149,9 +171,19 @@ export const ReviewView: React.FC<ReviewViewProps> = ({ job, setActiveTab, dryRu
               </div>
 
               <div>
+                <label className="block text-xs font-medium text-amber-400 mb-1">Short Description / Summary</label>
+                <textarea
+                  rows={3}
+                  value={editShortDescription}
+                  onChange={(e) => setEditShortDescription(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500 leading-relaxed"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Body Content</label>
                 <textarea
-                  rows={8}
+                  rows={6}
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono text-xs leading-relaxed"

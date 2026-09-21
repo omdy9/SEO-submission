@@ -105,8 +105,20 @@ export const ContentGenerationView: React.FC<ContentGenerationViewProps> = ({ jo
 
               {gen && (
                 <div className="bg-slate-900/60 p-4 rounded-xl space-y-2 border border-slate-800/80">
-                  <div className="font-semibold text-sm text-indigo-300">{gen.aiResponse.title}</div>
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{gen.aiResponse.content}</p>
+                  <div className="font-semibold text-sm text-indigo-300">
+                    <span className="text-xs text-slate-500 font-normal uppercase mr-2">Title:</span>
+                    {gen.aiResponse.title}
+                  </div>
+                  {gen.aiResponse.short_description && (
+                    <div className="text-xs text-slate-300 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800">
+                      <span className="text-[10px] text-amber-400 font-semibold uppercase mr-2">Description:</span>
+                      {gen.aiResponse.short_description}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mt-1">
+                    <span className="text-[10px] text-slate-500 font-semibold uppercase mr-2">Body Snippet:</span>
+                    {gen.aiResponse.content}
+                  </p>
                 </div>
               )}
             </div>

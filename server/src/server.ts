@@ -240,7 +240,7 @@ app.post('/api/jobs/:id/approve', (req: Request, res: Response): any => {
 app.put('/api/jobs/:id/tasks/:rowIndex', (req: Request, res: Response): any => {
   const jobId = String(req.params.id);
   const rowIndex = String(req.params.rowIndex);
-  const { title, content, target_url } = req.body;
+  const { title, short_description, content, target_url } = req.body;
 
   const job = JobManager.getJob(jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -251,9 +251,10 @@ app.put('/api/jobs/:id/tasks/:rowIndex', (req: Request, res: Response): any => {
     const current = job.tasks[taskIndex].generation!.aiResponse;
     job.tasks[taskIndex].generation!.aiResponse = {
       ...current,
-      title: title || current.title,
-      content: content || current.content,
-      target_url: target_url || current.target_url,
+      title: title !== undefined ? title : current.title,
+      short_description: short_description !== undefined ? short_description : current.short_description,
+      content: content !== undefined ? content : current.content,
+      target_url: target_url !== undefined ? target_url : current.target_url,
     };
     JobManager.updateTask(jobId, parsedRow, job.tasks[taskIndex]);
     JobManager.addLog(jobId, 'info', `Edited generated content for row ${rowIndex}.`);

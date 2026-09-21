@@ -17,6 +17,8 @@ export interface ColumnMapping {
   contentType: number;    // Column index for Content Type / Submission
   targetSite: number;     // Column index for Submission Link / Target URL
   keywordWebsite: number; // Column index for Website (URL to hyperlink keyword to)
+  title?: number;         // Column index for pre-existing Title (optional)
+  description?: number;   // Column index for pre-existing Description / Summary (optional)
   date?: number;          // Column index for Date (optional)
   finalLink?: number;     // Column index for Final Link (optional, output)
 }

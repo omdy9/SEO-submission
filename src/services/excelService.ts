@@ -106,6 +106,8 @@ export class ExcelService {
     let contentType = -1;
     let targetSite = -1;
     let keywordWebsite = -1;
+    let title = -1;
+    let description = -1;
     let date = -1;
     let finalLink = -1;
 
@@ -146,6 +148,16 @@ export class ExcelService {
         }
       }
 
+      // Title column
+      if (title === -1 && (lower === 'title' || lower === 'generated title' || lower === 'heading' || lower === 'subject')) {
+        title = colNum;
+      }
+
+      // Description / Summary column
+      if (description === -1 && (lower === 'description' || lower === 'short description' || lower === 'summary' || lower === 'generated description')) {
+        description = colNum;
+      }
+
       // Date column
       if (date === -1 && (lower === 'date' || lower.includes('date'))) {
         date = colNum;
@@ -171,6 +183,8 @@ export class ExcelService {
       contentType,
       targetSite,
       keywordWebsite,
+      title: title !== -1 ? title : undefined,
+      description: description !== -1 ? description : undefined,
       date: date !== -1 ? date : undefined,
       finalLink: finalLink !== -1 ? finalLink : undefined,
     };
@@ -196,6 +210,12 @@ export class ExcelService {
       const keywordWebsite = mapping.keywordWebsite > 0
         ? this.extractCellValue(row.getCell(mapping.keywordWebsite))
         : '';
+      const mappedTitle = mapping.title && mapping.title > 0
+        ? this.extractCellValue(row.getCell(mapping.title))
+        : '';
+      const mappedDesc = mapping.description && mapping.description > 0
+        ? this.extractCellValue(row.getCell(mapping.description))
+        : '';
 
       if (!keyword && !targetSite) {
         return; // Skip empty rows
@@ -214,6 +234,8 @@ export class ExcelService {
       headers.forEach((h, i) => {
         rawRow[h] = this.extractCellValue(row.getCell(i + 1));
       });
+      if (mappedTitle) rawRow['__mappedTitle'] = mappedTitle;
+      if (mappedDesc) rawRow['__mappedDescription'] = mappedDesc;
 
       tasks.push({
         rowIndex: rowNumber,

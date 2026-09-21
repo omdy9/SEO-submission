@@ -194,18 +194,38 @@ Return ONLY raw valid JSON:
 
   private parseAndValidateJSON(rawText: string): AIContentResponse {
     try {
-      const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
+      let jsonString = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-      if (!parsed.title || !parsed.content) {
+      const firstBrace = jsonString.indexOf('{');
+      const lastBrace = jsonString.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonString = jsonString.substring(firstBrace, lastBrace + 1);
+      }
+
+      const parsed = JSON.parse(jsonString);
+
+      const title = parsed.title ? String(parsed.title).trim() : '';
+      const content = parsed.content ? String(parsed.content).trim() : '';
+
+      if (!title && !content) {
         throw new Error('AI response JSON missing required fields "title" or "content"');
       }
 
+      let shortDescription = parsed.short_description ? String(parsed.short_description).trim() : '';
+      if (!shortDescription) {
+        if (content) {
+          const plainText = content.replace(/<[^>]+>/g, '');
+          shortDescription = plainText.length > 150 ? `${plainText.substring(0, 147)}...` : plainText;
+        } else {
+          shortDescription = title;
+        }
+      }
+
       return {
-        title: String(parsed.title).trim(),
-        content: String(parsed.content).trim(),
-        short_description: String(parsed.short_description || parsed.title).trim(),
-        category: String(parsed.category || 'General').trim(),
+        title: title || 'SEO Content Title',
+        content: content || 'SEO Body Content',
+        short_description: shortDescription,
+        category: String(parsed.category || 'Business Consultancy').trim(),
         tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : ['SEO', 'Services'],
         target_url: String(parsed.target_url || ''),
       };

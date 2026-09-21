@@ -13,6 +13,8 @@ interface MappingState {
   contentType: number;
   targetSite: number;
   keywordWebsite: number;
+  title: number;
+  description: number;
   date: number;
   finalLink: number;
 }
@@ -51,6 +53,22 @@ const FIELD_CONFIG = [
     required: false,
   },
   {
+    key: 'title',
+    label: 'Title (Optional)',
+    description: 'Pre-existing title column from Excel',
+    icon: Type,
+    color: 'sky',
+    required: false,
+  },
+  {
+    key: 'description',
+    label: 'Description / Summary (Optional)',
+    description: 'Pre-existing description or summary column',
+    icon: FileText,
+    color: 'amber',
+    required: false,
+  },
+  {
     key: 'date',
     label: 'Date',
     description: 'Submission date (optional)',
@@ -63,7 +81,7 @@ const FIELD_CONFIG = [
     label: 'Final Link',
     description: 'Column for final published URL output (optional)',
     icon: CheckCircle2,
-    color: 'sky',
+    color: 'emerald',
     required: false,
   },
 ];
@@ -74,6 +92,8 @@ export const ColumnMappingView: React.FC<ColumnMappingViewProps> = ({ job, setJo
     contentType: 0,
     targetSite: 0,
     keywordWebsite: 0,
+    title: 0,
+    description: 0,
     date: 0,
     finalLink: 0,
   });
@@ -89,6 +109,8 @@ export const ColumnMappingView: React.FC<ColumnMappingViewProps> = ({ job, setJo
         contentType: job.columnMapping.contentType || 0,
         targetSite: job.columnMapping.targetSite || 0,
         keywordWebsite: job.columnMapping.keywordWebsite || 0,
+        title: job.columnMapping.title || 0,
+        description: job.columnMapping.description || 0,
         date: job.columnMapping.date || 0,
         finalLink: job.columnMapping.finalLink || 0,
       });
@@ -130,6 +152,8 @@ export const ColumnMappingView: React.FC<ColumnMappingViewProps> = ({ job, setJo
             contentType: mapping.contentType,
             targetSite: mapping.targetSite,
             keywordWebsite: mapping.keywordWebsite,
+            title: mapping.title || undefined,
+            description: mapping.description || undefined,
             date: mapping.date || undefined,
             finalLink: mapping.finalLink || undefined,
           },
