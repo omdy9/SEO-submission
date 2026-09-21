@@ -239,6 +239,109 @@ app.post('/api/submit-single-task', async (req: Request, res: Response): Promise
   }
 });
 
+// ─────────────────────────────────────────────────────────────────
+// QUICK MODE ENDPOINTS
+// ─────────────────────────────────────────────────────────────────
+
+// QM-1. Return the built-in list of supported bookmarking sites
+app.get('/api/quick-bookmarking-sites', (_req: Request, res: Response) => {
+  const sites = [
+    { name: 'Tumblr', url: 'https://www.tumblr.com' },
+    { name: 'Raindrop', url: 'https://app.raindrop.io' },
+    { name: 'Instapaper', url: 'https://www.instapaper.com' },
+    { name: 'Mix', url: 'https://mix.com' },
+    { name: 'Scoop.it', url: 'https://www.scoop.it' },
+    { name: 'JustPaste.it', url: 'https://justpaste.it' },
+    { name: 'Padlet', url: 'https://padlet.com' },
+    { name: 'Pearltrees', url: 'https://www.pearltrees.com' },
+    { name: 'Flipboard', url: 'https://flipboard.com' },
+    { name: 'Diigo', url: 'https://www.diigo.com' },
+    { name: 'Linktree', url: 'https://linktr.ee' },
+  ];
+  res.json({ sites });
+});
+
+// QM-2. Quick Run: generate content for one keyword+link and submit to one target site
+app.post('/api/quick-run', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { keyword, link, targetSite, dryRun } = req.body as {
+      keyword: string;
+      link: string;
+      targetSite: string;
+      dryRun?: boolean;
+    };
+
+    if (!keyword || !link || !targetSite) {
+      return res.status(400).json({ error: 'keyword, link, and targetSite are required.' });
+    }
+
+    const task = {
+      rowIndex: Date.now(),
+      keyword,
+      contentType: 'Bookmarking' as const,
+      targetSite,
+      keywordWebsite: link,
+      rawRow: {},
+    };
+
+    // Step 1: Generate AI content
+    const aiService = new AIService();
+    const uniquenessService = new UniquenessService();
+
+    let genResult = await aiService.generateContent(task);
+    let uniqCheck = uniquenessService.checkUniqueness(
+      genResult.aiResponse.content,
+      appSettings.similarityThreshold
+    );
+
+    let retries = 0;
+    while (!uniqCheck.isUnique && retries < 2) {
+      retries++;
+      const note = `CRITICAL: Re-write to be completely distinct from "${uniqCheck.matchedTitle}". Change phrasing and structure.`;
+      genResult = await aiService.generateContent(task, note);
+      uniqCheck = uniquenessService.checkUniqueness(genResult.aiResponse.content, appSettings.similarityThreshold);
+    }
+
+    genResult.similarityScore = uniqCheck.maxSimilarity;
+    uniquenessService.saveToHistory(keyword, 'Bookmarking', genResult.aiResponse.title, genResult.aiResponse.content);
+
+    // Step 2: Submit
+    const isDryRun = dryRun !== undefined ? dryRun : appSettings.dryRun;
+    const submissionAdapter = new SubmissionAdapter();
+    const verificationService = new VerificationService();
+
+    const subResult = await submissionAdapter.submitContent(task, genResult.aiResponse, isDryRun, {
+      username: appSettings.submissionUsername,
+      password: appSettings.submissionPassword,
+    });
+
+    let verResult = undefined;
+    let finalStatus = subResult.status;
+    if (subResult.finalPublishedUrl && subResult.status === 'PUBLISHED') {
+      verResult = await verificationService.verifyPublishedUrl(
+        subResult.finalPublishedUrl,
+        genResult.aiResponse.title,
+        genResult.aiResponse.target_url
+      );
+      finalStatus = verResult.status;
+    }
+
+    res.json({
+      keyword,
+      link,
+      targetSite,
+      title: genResult.aiResponse.title,
+      description: genResult.aiResponse.short_description,
+      provider: genResult.providerUsed,
+      finalPublishedUrl: subResult.finalPublishedUrl,
+      status: finalStatus,
+      error: subResult.error,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Trigger AI Generation
 app.post('/api/jobs/:id/generate', async (req: Request, res: Response): Promise<any> => {
   const jobId = String(req.params.id);

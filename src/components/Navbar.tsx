@@ -9,7 +9,8 @@ import {
   Send, 
   ListChecks, 
   Download, 
-  Settings 
+  Settings,
+  Zap
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -21,6 +22,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, jobId, dryRun }) => {
   const tabs = [
+    { id: 'quick-mode', label: '⚡ Quick Mode', icon: Zap, accent: true },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'upload', label: '1. Upload Excel', icon: Upload },
     { id: 'mapping', label: '2. Column Mapping', icon: TableProperties },
@@ -71,17 +73,22 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, jobId, 
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const isAccent = (tab as any).accent;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 ${
-                  isActive
+                  isActive && isAccent
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black shadow-md shadow-yellow-500/30'
+                    : isActive
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                    : isAccent
+                    ? 'text-yellow-400 hover:text-yellow-200 hover:bg-yellow-500/10 border border-yellow-500/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive && isAccent ? 'text-black' : isAccent ? 'text-yellow-400' : isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );

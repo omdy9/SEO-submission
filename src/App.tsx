@@ -10,6 +10,7 @@ import { SubmissionProgressView } from './components/SubmissionProgressView';
 import { ResultsView } from './components/ResultsView';
 import { ExportView } from './components/ExportView';
 import { SettingsView } from './components/SettingsView';
+import { QuickModeView } from './components/QuickModeView';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -85,6 +86,7 @@ export function App() {
         {activeTab === 'results' && <ResultsView job={job} setActiveTab={setActiveTab} />}
         {activeTab === 'export' && <ExportView job={job} setActiveTab={setActiveTab} />}
         {activeTab === 'settings' && <SettingsView dryRun={dryRun} setDryRun={setDryRun} />}
+        {activeTab === 'quick-mode' && <QuickModeView />}
       </main>
     </div>
   );
