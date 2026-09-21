@@ -47,6 +47,17 @@ function genId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
+/** Returns the N sites assigned to keyword at index ri, cycling through the pool */
+function assignSitesForKeyword(pool: string[], ri: number, n: number): string[] {
+  const totalPool = pool.length;
+  if (totalPool === 0 || n === 0) return [];
+  const assigned: string[] = [];
+  for (let i = 0; i < n; i++) {
+    assigned.push(pool[(ri * n + i) % totalPool]);
+  }
+  return assigned;
+}
+
 export const QuickModeView: React.FC = () => {
   const [rows, setRows] = useState<QuickRow[]>([
     { id: genId(), keyword: '', link: '' },
@@ -56,6 +67,7 @@ export const QuickModeView: React.FC = () => {
   const [dryRun, setDryRun] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [showBulkPaste, setShowBulkPaste] = useState(false);
+  const [sitesPerKeyword, setSitesPerKeyword] = useState(3);
   const [selectedSites, setSelectedSites] = useState<string[]>(
     BOOKMARKING_SITES.map((s) => s.url)
   );
@@ -100,30 +112,34 @@ export const QuickModeView: React.FC = () => {
     abortRef.current = false;
     setRunning(true);
 
-    // Initialize results
-    const initialResults: RowResult[] = validRows.map((row) => ({
-      rowId: row.id,
-      keyword: row.keyword,
-      link: row.link,
-      expanded: true,
-      sites: selectedSites.map((siteUrl) => {
-        const site = BOOKMARKING_SITES.find((s) => s.url === siteUrl);
-        return {
-          siteName: site?.name || siteUrl,
-          siteUrl,
-          status: 'pending',
-        };
-      }),
-    }));
+    // Round-robin: each keyword gets a different slice of `sitesPerKeyword` sites
+    const initialResults: RowResult[] = validRows.map((row, ri) => {
+      const assignedUrls = assignSitesForKeyword(selectedSites, ri, sitesPerKeyword);
+      return {
+        rowId: row.id,
+        keyword: row.keyword,
+        link: row.link,
+        expanded: true,
+        sites: assignedUrls.map((siteUrl) => {
+          const site = BOOKMARKING_SITES.find((s) => s.url === siteUrl);
+          return {
+            siteName: site?.name || siteUrl,
+            siteUrl,
+            status: 'pending' as const,
+          };
+        }),
+      };
+    });
     setResults(initialResults);
 
     for (let ri = 0; ri < validRows.length; ri++) {
       if (abortRef.current) break;
       const row = validRows[ri];
+      const assignedUrls = assignSitesForKeyword(selectedSites, ri, sitesPerKeyword);
 
-      for (let si = 0; si < selectedSites.length; si++) {
+      for (let si = 0; si < assignedUrls.length; si++) {
         if (abortRef.current) break;
-        const siteUrl = selectedSites[si];
+        const siteUrl = assignedUrls[si];
 
         // Mark as generating
         setResults((prev) =>
@@ -282,44 +298,106 @@ export const QuickModeView: React.FC = () => {
       </div>
 
       {/* Settings Bar */}
-      <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center gap-4">
-        <div className="flex items-center space-x-3 text-sm">
-          <span className="text-slate-400 font-medium">Mode:</span>
-          <button
-            onClick={() => setDryRun(!dryRun)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
-              dryRun
-                ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                : 'bg-slate-900 border-slate-700 text-slate-400'
-            }`}
-          >
-            {dryRun ? '🧪 Dry Run ON (simulated)' : '🚀 Live Mode'}
-          </button>
+      <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Mode toggle */}
+          <div className="flex items-center space-x-3 text-sm">
+            <span className="text-slate-400 font-medium">Mode:</span>
+            <button
+              onClick={() => setDryRun(!dryRun)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
+                dryRun
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                  : 'bg-slate-900 border-slate-700 text-slate-400'
+              }`}
+            >
+              {dryRun ? '🧪 Dry Run ON (simulated)' : '🚀 Live Mode'}
+            </button>
+          </div>
+
+          {/* Sites per keyword */}
+          <div className="flex items-center space-x-3">
+            <span className="text-slate-400 text-xs font-medium whitespace-nowrap">Sites per keyword:</span>
+            <div className="flex items-center space-x-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setSitesPerKeyword(n)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${
+                    sitesPerKeyword === n
+                      ? 'bg-yellow-500 border-yellow-400 text-black'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <span className="text-slate-500 text-xs">per keyword (round-robin across pool)</span>
+          </div>
         </div>
 
-        <div className="flex-1">
+        {/* Site pool toggle */}
+        <div>
           <div className="flex items-center space-x-2 mb-2">
             <Globe className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs font-semibold text-slate-300">Target Bookmarking Sites ({selectedSites.length} selected)</span>
+            <span className="text-xs font-semibold text-slate-300">Site Pool ({selectedSites.length} active)</span>
+            <span className="text-slate-600 text-xs">— sites cycle across keywords in order</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {BOOKMARKING_SITES.map((site) => {
+            {BOOKMARKING_SITES.map((site, idx) => {
               const active = selectedSites.includes(site.url);
+              const poolIdx = selectedSites.indexOf(site.url);
               return (
                 <button
                   key={site.url}
                   onClick={() => toggleSite(site.url)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition ${
+                  title={active ? `Pool position #${poolIdx + 1}` : 'Click to add to pool'}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition flex items-center space-x-1 ${
                     active
                       ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
                       : 'bg-slate-900 border-slate-800 text-slate-600'
                   }`}
                 >
-                  {site.name}
+                  {active && (
+                    <span className="text-[9px] font-bold text-indigo-400 bg-indigo-900/50 rounded px-1">
+                      #{poolIdx + 1}
+                    </span>
+                  )}
+                  <span>{site.name}</span>
                 </button>
               );
             })}
           </div>
+
+          {/* Preview distribution */}
+          {rows.some((r) => r.keyword.trim()) && selectedSites.length > 0 && (
+            <div className="mt-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Preview Distribution</p>
+              {rows.filter((r) => r.keyword.trim()).slice(0, 6).map((row, ri) => {
+                const assigned = assignSitesForKeyword(selectedSites, ri, sitesPerKeyword);
+                return (
+                  <div key={row.id} className="flex items-center space-x-2 text-xs">
+                    <span className="text-slate-400 font-medium truncate max-w-[140px]">{row.keyword || `Keyword ${ri+1}`}</span>
+                    <span className="text-slate-600">→</span>
+                    <div className="flex flex-wrap gap-1">
+                      {assigned.map((url) => {
+                        const s = BOOKMARKING_SITES.find((b) => b.url === url);
+                        return (
+                          <span key={url} className="px-1.5 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-medium">
+                            {s?.name || url}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {rows.filter((r) => r.keyword.trim()).length > 6 && (
+                <p className="text-[10px] text-slate-600">+ {rows.filter((r) => r.keyword.trim()).length - 6} more keywords…</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -410,11 +488,11 @@ export const QuickModeView: React.FC = () => {
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-sm text-slate-400">
-          {rows.filter((r) => r.keyword && r.link).length} keyword(s) × {selectedSites.length} site(s) ={' '}
+          {rows.filter((r) => r.keyword && r.link).length} keyword(s) × {sitesPerKeyword} site(s) each ={' '}
           <strong className="text-white">
-            {rows.filter((r) => r.keyword && r.link).length * selectedSites.length}
+            {rows.filter((r) => r.keyword && r.link).length * sitesPerKeyword}
           </strong>{' '}
-          total submissions
+          total submissions (round-robin across {selectedSites.length}-site pool)
         </div>
 
         <div className="flex items-center space-x-3">
@@ -429,7 +507,7 @@ export const QuickModeView: React.FC = () => {
           )}
           <button
             onClick={handleRun}
-            disabled={running || rows.filter((r) => r.keyword && r.link).length === 0 || selectedSites.length === 0}
+            disabled={running || rows.filter((r) => r.keyword && r.link).length === 0 || selectedSites.length === 0 || sitesPerKeyword === 0}
             className={`inline-flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold shadow-xl transition ${
               running
                 ? 'bg-yellow-600/40 text-yellow-200 cursor-wait'
