@@ -13,14 +13,37 @@ export const ContentGenerationView: React.FC<ContentGenerationViewProps> = ({ jo
   if (!job) return null;
 
   const handleStartGeneration = async () => {
+    if (!job?.tasks) return;
     setGenerating(true);
-    try {
-      await safeFetchJson(`/api/jobs/${job.id}/generate`, { method: 'POST' });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGenerating(false);
+
+    // Also notify server background if on full Node environment
+    safeFetchJson(`/api/jobs/${job.id}/generate`, { method: 'POST' }).catch(() => null);
+
+    // Process tasks sequentially/batch from client for Vercel Serverless reliability
+    for (let i = 0; i < job.tasks.length; i++) {
+      const item = job.tasks[i];
+      if (!item.generation) {
+        try {
+          item.status = 'ANALYZING';
+          const resData = await safeFetchJson('/api/generate-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task: item.task }),
+          });
+
+          if (resData?.generation) {
+            item.generation = resData.generation;
+            item.status = 'GENERATED';
+          }
+        } catch (err: any) {
+          console.error(`Row ${item.task.rowIndex} generation error:`, err);
+          item.status = 'FAILED';
+          item.error = err.message;
+        }
+      }
     }
+
+    setGenerating(false);
   };
 
   const generatedCount = job.tasks.filter((t: any) => t.generation).length;

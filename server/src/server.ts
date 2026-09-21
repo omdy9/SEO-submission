@@ -150,6 +150,95 @@ app.get('/api/jobs/:id/stream', (req: Request, res: Response): any => {
   res.write(`data: ${JSON.stringify({ type: 'INIT', job: JobManager.toSafeJSON(job) })}\n\n`);
 });
 
+// 5b. Synchronous Single-Task Generation Endpoint (Vercel Serverless Compatible)
+app.post('/api/generate-task', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { task } = req.body;
+    if (!task || !task.keyword) {
+      return res.status(400).json({ error: 'Invalid task object provided.' });
+    }
+
+    const aiService = new AIService();
+    const uniquenessService = new UniquenessService();
+
+    let genResult = await aiService.generateContent(task);
+    let uniqCheck = uniquenessService.checkUniqueness(
+      genResult.aiResponse.content,
+      appSettings.similarityThreshold
+    );
+
+    let retries = 0;
+    while (!uniqCheck.isUnique && retries < 2) {
+      retries++;
+      const note = `CRITICAL: Re-write content to be completely distinct from "${uniqCheck.matchedTitle}". Change phrasing and structure.`;
+      genResult = await aiService.generateContent(task, note);
+      uniqCheck = uniquenessService.checkUniqueness(
+        genResult.aiResponse.content,
+        appSettings.similarityThreshold
+      );
+    }
+
+    genResult.similarityScore = uniqCheck.maxSimilarity;
+    uniquenessService.saveToHistory(
+      task.keyword,
+      task.contentType,
+      genResult.aiResponse.title,
+      genResult.aiResponse.content
+    );
+
+    res.json({
+      generation: genResult,
+      status: 'GENERATED',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5c. Synchronous Single-Task Submission Endpoint (Vercel Serverless Compatible)
+app.post('/api/submit-single-task', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { task, generation, dryRun } = req.body;
+    if (!task || !generation) {
+      return res.status(400).json({ error: 'Task and generation data are required.' });
+    }
+
+    const isDryRun = dryRun !== undefined ? dryRun : appSettings.dryRun;
+    const submissionAdapter = new SubmissionAdapter();
+    const verificationService = new VerificationService();
+
+    const subResult = await submissionAdapter.submitContent(
+      task,
+      generation.aiResponse,
+      isDryRun,
+      {
+        username: appSettings.submissionUsername,
+        password: appSettings.submissionPassword,
+      }
+    );
+
+    let verResult = undefined;
+    let finalStatus = subResult.status;
+
+    if (subResult.finalPublishedUrl && subResult.status === 'PUBLISHED') {
+      verResult = await verificationService.verifyPublishedUrl(
+        subResult.finalPublishedUrl,
+        generation.aiResponse.title,
+        generation.aiResponse.target_url
+      );
+      finalStatus = verResult.status;
+    }
+
+    res.json({
+      submission: subResult,
+      verification: verResult,
+      status: finalStatus,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Trigger AI Generation
 app.post('/api/jobs/:id/generate', async (req: Request, res: Response): Promise<any> => {
   const jobId = String(req.params.id);

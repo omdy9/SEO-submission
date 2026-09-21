@@ -14,14 +14,41 @@ export const SubmissionProgressView: React.FC<SubmissionProgressViewProps> = ({ 
   if (!job) return null;
 
   const handleStartSubmission = async () => {
+    if (!job?.tasks) return;
     setSubmitting(true);
-    try {
-      await safeFetchJson(`/api/jobs/${job.id}/submit`, { method: 'POST' });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
+
+    // Also trigger server endpoint if on full Node environment
+    safeFetchJson(`/api/jobs/${job.id}/submit`, { method: 'POST' }).catch(() => null);
+
+    // Process single-task submissions from client for Vercel compatibility
+    for (let i = 0; i < job.tasks.length; i++) {
+      const item = job.tasks[i];
+      if (item.generation && (item.status === 'GENERATED' || item.status === 'FAILED')) {
+        try {
+          item.status = 'SUBMITTED';
+          const resData = await safeFetchJson('/api/submit-single-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              task: item.task,
+              generation: item.generation,
+            }),
+          });
+
+          if (resData) {
+            item.submission = resData.submission;
+            item.verification = resData.verification;
+            item.status = resData.status || 'PUBLISHED';
+          }
+        } catch (err: any) {
+          console.error(`Row ${item.task.rowIndex} submission error:`, err);
+          item.status = 'FAILED';
+          item.error = err.message;
+        }
+      }
     }
+
+    setSubmitting(false);
   };
 
   const humanActionTask = job.tasks.find((t: any) => t.status === 'REQUIRES_MANUAL_ACTION');
