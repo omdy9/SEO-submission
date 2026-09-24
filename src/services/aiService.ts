@@ -178,7 +178,7 @@ Return ONLY raw valid JSON:
   }
 
   private async callGroq(prompt: string): Promise<AIContentResponse> {
-    const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+    const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
     const chatCompletion = await this.groqClient!.chat.completions.create({
       messages: [
         { role: 'system', content: 'You are an expert SEO content generator. Return only raw JSON.' },
@@ -276,8 +276,8 @@ Return ONLY raw valid JSON:
     ];
 
     const bodyTemplates = [
-      `${companyName} handles all aspects of IEC code updates, advance licenses, EPCG authorizations, and duty drawbacks in ${location}. Their experienced team ensures accurate submission and rapid clearance at every step.`,
-      `With years of domain experience, ${companyName} assists enterprises in overcoming regulatory hurdles, auditing trade paperwork, and maximizing eligible government incentive schemes effortlessly.`,
+      `${companyName} handles all aspects of IEC code updates, advance licenses, EPCG authorizations, and duty drawbacks in ${location}. Their experienced team ensures accurate submission and rapid follow-through for every critical trade filing.`,
+      `With years of domain experience, ${companyName} assists enterprises in overcoming regulatory hurdles, auditing trade paperwork, and maximizing eligible government incentive schemes effectively.`,
       `From customs documentation to DGFT portal representations, ${companyName} equips exporters and importers in ${location} with strategic advisory tailored to regional market demands.`,
       `By leveraging specialized industry knowledge, ${companyName} streamlines documentation workflows, minimizes audit risks, and accelerates overall international business expansion.`,
       `The team at ${companyName} delivers end-to-end guidance on export incentives, SION norm fixes, and policy compliance, giving businesses in ${location} a distinct competitive advantage.`,
